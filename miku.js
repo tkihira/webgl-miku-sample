@@ -3,9 +3,10 @@
 		initialize();
 	};
 	
-	var gl;
-	var prog;
+	var gl; // WebGLのcontext
+	var prog; // コンパイル・リンクされたプログラム
 	var initialize = function() {
+		// WebGLのcontextを取得
 		var canvas = document.getElementById("canvas");
 		gl = canvas.getContext("experimental-webgl") || canvas.getContext("webgl");
 		if(!gl) {
@@ -13,6 +14,7 @@
 			return;
 		}
 		
+		// Vertex Shaderをコンパイル
 		var vs = gl.createShader(gl.VERTEX_SHADER);
 		gl.shaderSource(vs, document.getElementById("vs").text);
 		gl.compileShader(vs);
@@ -22,6 +24,7 @@
 			return;
 		}
 
+		// Fragment Shaderをコンパイル
 		var fs = gl.createShader(gl.FRAGMENT_SHADER);
 		gl.shaderSource(fs, document.getElementById("fs").text);
 		gl.compileShader(fs);
@@ -31,6 +34,7 @@
 			return;
 		}
 
+		// Shaderをリンク
 		prog = gl.createProgram();
 		gl.attachShader(prog, vs);
 		gl.attachShader(prog, fs);

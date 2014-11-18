@@ -4,22 +4,33 @@
 <script src="miku.js"></script>
 <script type="glsl" id="vs">
 precision mediump float;
-uniform mat4 modelviewMatrix;
-uniform mat4 projectionMatrix;
-attribute vec3 vertex;
-attribute vec3 normal;
-varying vec3 e_normal;
+// uniform: プログラムからVertex Shaderに送られてくる定数
+uniform mat4 modelviewMatrix; // 平行起動回転行列
+uniform mat4 projectionMatrix; // 錐台(frustum)変換行列
+// attribute: プログラムからVertex Shaderに送られてくる頂点データ
+attribute vec3 vertex; // 頂点座標
+attribute vec3 normal; // 頂点の法線ベクトル
+// varying: Vertex ShaderからFragment Shaderに送るデータ
+varying vec3 e_normal; // 法線ベクトルと平行移動回転行列との積
+
 void main() {
+	// 頂点座標をクリッピング座標系に変換する
 	gl_Position = projectionMatrix * modelviewMatrix * vec4(vertex, 1.0);
+	// 法線ベクトルを世界座標系に変換する
 	e_normal = vec3(modelviewMatrix * vec4(normal, 0.0));
 }
 </script>
 <script type="glsl" id="fs">
 precision mediump float;
+// varying: Vertex ShaderからFragment Shaderに送られた法線ベクトル
 varying vec3 e_normal;
+
 void main() {
+	// 法線ベクトルを正規化(＝長さを1にする)
 	vec3 n = normalize(e_normal);
+	// 法線ベクトルと光ベクトル（-1, 1, 1)との内積で光量を決定
 	float l = abs(dot(n, normalize(vec3(-1, 1, 1))));
+	// このピクセルの色をRGBA(l, l, l, 1) に設定（RGBA値はすべて0〜1の間）
 	gl_FragColor = vec4(l, l, l, 1.0);
 }
 </script>
