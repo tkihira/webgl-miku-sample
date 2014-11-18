@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><title>3d miku</title>
+<script src="miku.js"></script>
+<script type="glsl" id="vs">
+precision mediump float;
+uniform mat4 modelviewMatrix;
+uniform mat4 projectionMatrix;
+attribute vec3 vertex;
+attribute vec3 normal;
+varying vec3 e_normal;
+void main() {
+	gl_Position = projectionMatrix * modelviewMatrix * vec4(vertex, 1.0);
+	e_normal = vec3(modelviewMatrix * vec4(normal, 0.0));
+}
+</script>
+<script type="glsl" id="fs">
+precision mediump float;
+varying vec3 e_normal;
+void main() {
+	vec3 n = normalize(e_normal);
+	float l = abs(dot(n, normalize(vec3(-1, 1, 1))));
+	gl_FragColor = vec4(l, l, l, 1.0);
+}
+</script>
+</title><body>
+<canvas id="canvas" width="512" height="512"></canvas>
+</body></html>
