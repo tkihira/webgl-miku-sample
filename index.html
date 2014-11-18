@@ -28,8 +28,8 @@ varying vec3 e_normal;
 void main() {
 	// 法線ベクトルを正規化(＝長さを1にする)
 	vec3 n = normalize(e_normal);
-	// 法線ベクトルと光ベクトル（-1, 1, 1)との内積で光量を決定
-	float l = abs(dot(n, normalize(vec3(-1, 1, 1))));
+	// 法線ベクトルと光ベクトル（0, 0, 1)との内積で光量を決定
+	float l = abs(dot(n, normalize(vec3(0, 0, 1))));
 	// このピクセルの色をRGBA(l, l, l, 1) に設定（RGBA値はすべて0〜1の間）
 	gl_FragColor = vec4(l, l, l, 1.0);
 }
