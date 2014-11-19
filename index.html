@@ -1,6 +1,7 @@
 <!doctype html>
 <html><head><title>3d miku</title>
 <script src="gl-matrix-min.js"></script>
+<script src="imgloader.js"></script>
 <script src="objparser.js"></script>
 <script src="miku.js"></script>
 <script type="glsl" id="vs">
@@ -11,9 +12,11 @@ uniform mat4 projectionMatrix; // 錐台(frustum)変換行列
 // attribute: プログラムからVertex Shaderに送られてくる頂点データ
 attribute vec3 vertex; // 頂点座標
 attribute vec3 normal; // 頂点の法線ベクトル
+attribute vec2 texcoord; // テクスチャ頂点座標
 // varying: Vertex ShaderからFragment Shaderに送るデータ
 varying vec3 e_normal; // 法線ベクトルと平行移動回転行列との積
 varying vec3 eye_v; // 視線ベクトル
+varying vec2 texpos; // テクスチャ座標
 
 void main() {
 	// 頂点座標をクリッピング座標系に変換する
@@ -21,16 +24,21 @@ void main() {
 	// 法線ベクトルと視線ベクトルを世界座標系に変換する
 	e_normal = vec3(modelviewMatrix * vec4(normal, 0.0));
 	eye_v = (modelviewMatrix * vec4(vertex, 1.0)).xyz;
+	// テクスチャ座標は素通しする
+	texpos = texcoord;
 }
 </script>
 <script type="glsl" id="fs">
 precision mediump float;
-// varying: Vertex ShaderからFragment Shaderに送られるデータ
 uniform vec3 kdcolor; // 拡散光
 uniform vec3 kscolor; // 鏡面光
 uniform float nscolor; // 光沢率
+uniform float hasTexture; // テクスチャがあるかどうかのフラグ
+uniform sampler2D texture; // テクスチャ画像
+// varying: Vertex ShaderからFragment Shaderに送られるデータ
 varying vec3 e_normal; // 法線ベクトル
 varying vec3 eye_v; // 視線ベクトル
+varying vec2 texpos; // テクスチャ座標
 
 void main() {
 	vec3 n = normalize(e_normal); // 正規化された法線ベクトル
@@ -38,7 +46,13 @@ void main() {
 	float diffuse = max(dot(light_v, n), 0.0); // 拡散光は入射光ベクトルと法線との内積
 	float specular = pow(max(dot(-normalize(eye_v), reflect(-light_v, n)), 0.0), nscolor); // 鏡面光は視線ベクトルと反射光ベクトルの内積
 	float l = 0.5; // 環境光の強さ
-	gl_FragColor = vec4(kdcolor * diffuse + kscolor * specular, 1.0) + vec4(kdcolor, 1.0) * vec4(l, l, l, 1.0);
+	if(hasTexture > 0.5) {
+		vec4 texcolor = texture2D(texture, texpos); // テクスチャ画像から座標の色を取得する
+		gl_FragColor.rgb = (kdcolor * texcolor.rgb) * (diffuse + l) + kscolor * specular;
+		gl_FragColor.a = texcolor.a;
+	} else {
+		gl_FragColor = vec4(kdcolor * diffuse + kscolor * specular, 1.0) + vec4(kdcolor, 1.0) * vec4(l, l, l, 1.0);
+	}
 }
 </script>
 </title><body>

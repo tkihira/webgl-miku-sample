@@ -113,7 +113,7 @@
 	};
 
 	// OBJファイルとMTLファイルの情報を元にWebGL用のTypedArrayを用意する
-	objParser.createGLObject = function(obj, mtl) {
+	objParser.createGLObject = function(obj, mtl, func) {
 		// まずポリゴンの枚数を特定する
 		var numTriangles = 0;
 		for(var i = 0; i < obj.faces.length; i++) {
@@ -124,6 +124,8 @@
 		var vertices = new Float32Array(numTriangles * 9);
 		// 法線ベクトル（ポリゴン数×3頂点×3要素）
 		var normals = new Float32Array(numTriangles * 9);
+		// テクスチャ頂点座標（ポリゴン数×3頂点×2要素）
+		var texcoords = new Float32Array(numTriangles * 6);
 
 		// 頂点ごとの法線ベクトルの和用配列
 		var normalAtVertex = new Array(numTriangles * 3);
@@ -150,15 +152,26 @@
 					endPos: triangleCount * 9,
 					kd: vec3.fromValues(0.5, 0.5, 0.5),
 					ks: vec3.fromValues(0.0, 0.0, 0.0),
-					ns: 1
+					ns: 1,
+					texture: null
 				});
 			} else if(currentMtlName) {
+				var textureName = mtl[currentMtlName].texture;
+				if(textureName) {
+					// テクスチャが必要であればロードする
+					imgLoader.load(textureName, function() {
+						if(!imgLoader.isLoading()) {
+							func(ret);
+						}
+					});
+				}
 				// mtlの情報とポリゴン情報を保存する
 				mtlInfos.push({
 					endPos: triangleCount * 9,
 					kd: mtl[currentMtlName].kd,
 					ks: mtl[currentMtlName].ks,
-					ns: mtl[currentMtlName].ns
+					ns: mtl[currentMtlName].ns,
+					texture: textureName
 				});
 			}
 		};
@@ -185,6 +198,18 @@
 				vertices.set(v0, triangleCount * 9);
 				vertices.set(v1, triangleCount * 9 + 3);
 				vertices.set(v2, triangleCount * 9 + 6);
+				// テクスチャのインデックスの取得（1ずれているのに注意）
+				var vti0 = face[0].tindex - 1;
+				var vti1 = face[ti].tindex - 1;
+				var vti2 = face[ti + 1].tindex - 1;
+				// インデックスからテクスチャ頂点を持ってくる
+				var vt0 = vec2.fromValues(obj.texcoords[vti0 * 2], obj.texcoords[vti0 * 2 + 1]);
+				var vt1 = vec2.fromValues(obj.texcoords[vti1 * 2], obj.texcoords[vti1 * 2 + 1]);
+				var vt2 = vec2.fromValues(obj.texcoords[vti2 * 2], obj.texcoords[vti2 * 2 + 1]);
+				// テクスチャ頂点をTypedArrayに保存
+				texcoords.set(vt0, triangleCount * 6);
+				texcoords.set(vt1, triangleCount * 6 + 2);
+				texcoords.set(vt2, triangleCount * 6 + 4);
 				// 法線を計算
 				var n = vec3.create();
 				vec3.sub(v1, v1, v0); // 頂点v0→v1のベクトルを計算
@@ -229,12 +254,16 @@
 			}
 		}
 		
-		// 用意したTypedArrayをリターン
-		return {
+		// すべてのデータが揃ったらcallback関数を呼び出す
+		var ret = {
 			vertices: vertices,
 			normals: normals,
+			texcoords: texcoords,
 			mtlInfos: mtlInfos
 		};
+		if(!imgLoader.isLoading()) {
+			func(ret);
+		}
 	};
 })();
 
