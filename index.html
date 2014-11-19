@@ -13,26 +13,32 @@ attribute vec3 vertex; // 頂点座標
 attribute vec3 normal; // 頂点の法線ベクトル
 // varying: Vertex ShaderからFragment Shaderに送るデータ
 varying vec3 e_normal; // 法線ベクトルと平行移動回転行列との積
+varying vec3 eye_v; // 視線ベクトル
 
 void main() {
 	// 頂点座標をクリッピング座標系に変換する
 	gl_Position = projectionMatrix * modelviewMatrix * vec4(vertex, 1.0);
-	// 法線ベクトルを世界座標系に変換する
+	// 法線ベクトルと視線ベクトルを世界座標系に変換する
 	e_normal = vec3(modelviewMatrix * vec4(normal, 0.0));
+	eye_v = (modelviewMatrix * vec4(vertex, 1.0)).xyz;
 }
 </script>
 <script type="glsl" id="fs">
 precision mediump float;
-// varying: Vertex ShaderからFragment Shaderに送られた法線ベクトル
-varying vec3 e_normal;
+// varying: Vertex ShaderからFragment Shaderに送られるデータ
+uniform vec3 kdcolor; // 拡散光
+uniform vec3 kscolor; // 鏡面光
+uniform float nscolor; // 光沢率
+varying vec3 e_normal; // 法線ベクトル
+varying vec3 eye_v; // 視線ベクトル
 
 void main() {
-	// 法線ベクトルを正規化(＝長さを1にする)
-	vec3 n = normalize(e_normal);
-	// 法線ベクトルと光ベクトル（0, 0, 1)との内積で光量を決定
-	float l = abs(dot(n, normalize(vec3(0, 0, 1))));
-	// このピクセルの色をRGBA(l, l, l, 1) に設定（RGBA値はすべて0〜1の間）
-	gl_FragColor = vec4(l, l, l, 1.0);
+	vec3 n = normalize(e_normal); // 正規化された法線ベクトル
+	vec3 light_v = normalize(vec3(1, 1, 1)); // 正規化された入射光ベクトル
+	float diffuse = max(dot(light_v, n), 0.0); // 拡散光は入射光ベクトルと法線との内積
+	float specular = pow(max(dot(-normalize(eye_v), reflect(-light_v, n)), 0.0), nscolor); // 鏡面光は視線ベクトルと反射光ベクトルの内積
+	float l = 0.5; // 環境光の強さ
+	gl_FragColor = vec4(kdcolor * diffuse + kscolor * specular, 1.0) + vec4(kdcolor, 1.0) * vec4(l, l, l, 1.0);
 }
 </script>
 </title><body>

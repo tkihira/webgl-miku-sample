@@ -1,5 +1,49 @@
 ;var objParser = {};
 (function() {
+	// MTLファイルのパース
+	objParser.mtlParse = function(text) {
+		var mtl = {};
+		var current = null; // 現在のmtl情報
+		// 今まで収集したmtl情報を保存する
+		var addCurrent = function() {
+			if(current) {
+				mtl[current.name] = current;
+			}
+			current = {};
+		};
+
+		var lines = text.split('\n');
+		for(var i = 0; i < lines.length; i++) {
+			var line = lines[i];
+			var words = line.split(' ');
+			switch(words[0]) {
+				case "newmtl":
+					// 新しいmtlの登場
+					addCurrent(); // 既存のmtlを保存
+					current.name = words[1]; // 新しいmtlの名前を保存
+					break;
+				case "Kd":
+					// 拡散光の保存
+					current.kd = vec3.fromValues(+words[1], +words[2], +words[3]);
+					break;
+				case "Ks":
+					// 鏡面光の保存
+					current.ks = vec3.fromValues(+words[1], +words[2], +words[3]);
+					break;
+				case "Ns":
+					// 光沢率の保存
+					current.ns = +words[1];
+					break;
+				case "map_Kd":
+					// テクスチャの保存
+					current.texture = words[1];
+					break;
+			}
+		}
+		// ファイルの最後のmtl情報を保存する
+		addCurrent();
+		return mtl;
+	};
 	// OBJファイルのパース
 	objParser.objParse = function(text) {
 		var vertices = []; // 頂点座標
@@ -68,8 +112,8 @@
 		};
 	};
 
-	// OBJファイルの情報を元にWebGL用のTypedArrayを用意する
-	objParser.createGLObject = function(obj) {
+	// OBJファイルとMTLファイルの情報を元にWebGL用のTypedArrayを用意する
+	objParser.createGLObject = function(obj, mtl) {
 		// まずポリゴンの枚数を特定する
 		var numTriangles = 0;
 		for(var i = 0; i < obj.faces.length; i++) {
@@ -96,10 +140,37 @@
 			}
 		};
 
+		var currentMtlName = ""; // 現在選択されているmtl名
+		var mtlInfos = []; // mtl単位の情報
+		// 現在のmtl情報の保存
+		var saveMtlInfo = function() {
+			if(!mtl) {
+				// mtlの情報がなかった時には、適当な色情報を用意しておく
+				mtlInfos.push({
+					endPos: triangleCount * 9,
+					kd: vec3.fromValues(0.5, 0.5, 0.5),
+					ks: vec3.fromValues(0.0, 0.0, 0.0),
+					ns: 1
+				});
+			} else if(currentMtlName) {
+				// mtlの情報とポリゴン情報を保存する
+				mtlInfos.push({
+					endPos: triangleCount * 9,
+					kd: mtl[currentMtlName].kd,
+					ks: mtl[currentMtlName].ks,
+					ns: mtl[currentMtlName].ns
+				});
+			}
+		};
 		var triangleCount = 0;
 		for(var fi = 0; fi < obj.faces.length; fi++) {
 			// objファイルの"f"定義1行ごとに処理する
 			var face = obj.faces[fi];
+			// mtlが変わった時には、現在までの情報を保存する
+			if(currentMtlName != face[0].mtlName) {
+				saveMtlInfo();
+				currentMtlName = face[0].mtlName;
+			}
 			// "f"が3つ以上あるときに、頂点は(0, 1, 2), (0, 2, 3), (0, 3, 4), ... という風に処理する
 			for(var ti = 1; ti < face.length - 1; ti++) {
 				// 三角形の頂点インデックスの取得（1ずれているのに注意）
@@ -129,6 +200,8 @@
 				++triangleCount;
 			}
 		}
+		// 最後に今までのmtlを保存しておく
+		saveMtlInfo();
 
 		// すべての法線ベクトルを加算し終わった後で、平均法線ベクトルを登録する
 		var triangleCount= 0;
@@ -159,7 +232,8 @@
 		// 用意したTypedArrayをリターン
 		return {
 			vertices: vertices,
-			normals: normals
+			normals: normals,
+			mtlInfos: mtlInfos
 		};
 	};
 })();

@@ -1,6 +1,7 @@
 ;(function() {
 	var config = {
-		objName: "miku.obj"
+		objName: "miku.obj",
+		mtlName: "miku.mtl"
 	};
 	// XHRを使ってOBJファイルを取得する
 	var fileCount = 0;
@@ -13,10 +14,11 @@
 			}
 		};
 		loadFile(config.objName, "obj", callback);
-		fileCount++;
+		loadFile(config.mtlName, "mtl", callback);
 	};
 	var files = {};
 	var loadFile = function(url, name, callback) {
+		fileCount++;
 		var xhr = new XMLHttpRequest();
 		xhr.onreadystatechange = function() {
 			if(xhr.readyState == 4) {
@@ -32,10 +34,11 @@
 	var prog; // コンパイル・リンクされたプログラム
 	var glObj; // WebGL用に変換されたモデルデータ
 	var initialize = function() {
-		// OBJファイルをパース
+		// OBJファイル、MTLファイルをパース
 		var obj = objParser.objParse(files.obj);
+		var mtl = objParser.mtlParse(files.mtl);
 		// パースしたデータを元にWebGL用のObjectを作成する
-		glObj = objParser.createGLObject(obj);
+		glObj = objParser.createGLObject(obj, mtl);
 		
 		// WebGLのcontextを取得
 		var canvas = document.getElementById("canvas");
@@ -124,7 +127,20 @@
 		gl.enableVertexAttribArray(npos);
 
 		// 今まで設定した内容でWebGLに送信
-		gl.drawArrays(gl.TRIANGLES, 0, glObj.vertices.length / 3);
+		// 一度に送信せず、mtl情報ごとに分割して送信する
+		var pos = 0;
+		for(var i = 0; i < glObj.mtlInfos.length; i++) {
+			var mtlInfo = glObj.mtlInfos[i];
+
+			// Kd, Ks, Nsをそれぞれuniformで送信
+			gl.uniform3fv(gl.getUniformLocation(prog, "kdcolor"), mtlInfo.kd);
+			gl.uniform3fv(gl.getUniformLocation(prog, "kscolor"), mtlInfo.ks);
+			gl.uniform1f(gl.getUniformLocation(prog, "nscolor"), mtlInfo.ns); // 1fの意味はfloat1個
+
+			// 前の最後の頂点(pos / 3)から、今回のmtlで描画する頂点数だけ送る
+			gl.drawArrays(gl.TRIANGLES, pos / 3, (mtlInfo.endPos - pos) / 3);
+			pos = mtlInfo.endPos;
+		}
 		setTimeout(drawFrame, 16);
 	};
 })();
