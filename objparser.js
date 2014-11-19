@@ -81,13 +81,28 @@
 		// 法線ベクトル（ポリゴン数×3頂点×3要素）
 		var normals = new Float32Array(numTriangles * 9);
 
+		// 頂点ごとの法線ベクトルの和用配列
+		var normalAtVertex = new Array(numTriangles * 3);
+		// 頂点ごとの法線ベクトルの計算用関数
+		var addNormal = function(index, n) {
+			if(!normalAtVertex[index]) {
+				// その頂点で初めての登録の場合は、法線ベクトルをただ登録する
+				normalAtVertex[index] = vec3.clone(n);
+				return;
+			} else {
+				// すでに登録してあった頂点に追加する場合は、ベクトルの足し算をする
+				var normal = normalAtVertex[index];
+				vec3.add(normal, normal, n);
+			}
+		};
+
 		var triangleCount = 0;
 		for(var fi = 0; fi < obj.faces.length; fi++) {
 			// objファイルの"f"定義1行ごとに処理する
 			var face = obj.faces[fi];
 			// "f"が3つ以上あるときに、頂点は(0, 1, 2), (0, 2, 3), (0, 3, 4), ... という風に処理する
 			for(var ti = 1; ti < face.length - 1; ti++) {
-				// 三角形のインデックス（1ずれているのに注意）
+				// 三角形の頂点インデックスの取得（1ずれているのに注意）
 				var vi0 = face[0].vindex - 1;
 				var vi1 = face[ti].vindex - 1;
 				var vi2 = face[ti + 1].vindex - 1;
@@ -106,15 +121,41 @@
 				vec3.cross(n, v1, v2); // 上記2つのベクトルの外積を計算
 				// 正規化
 				vec3.normalize(n, n);
-				// 法線をTypedArrayに入れておく
-				normals.set(n, triangleCount * 9);
-				normals.set(n, triangleCount * 9 + 3);
-				normals.set(n, triangleCount * 9 + 6);
+				// 頂点ごとの法線の平均を取るために保存
+				addNormal(vi0, n);
+				addNormal(vi1, n);
+				addNormal(vi2, n);
 
 				++triangleCount;
 			}
 		}
 
+		// すべての法線ベクトルを加算し終わった後で、平均法線ベクトルを登録する
+		var triangleCount= 0;
+		for(var fi = 0; fi < obj.faces.length; fi++) {
+			var face = obj.faces[fi];
+			for(var ti = 1; ti < face.length - 1; ti++) {
+				// 三角形の頂点インデックスの取得（1ずれているのに注意）
+				var vi0 = face[0].vindex - 1;
+				var vi1 = face[ti].vindex - 1;
+				var vi2 = face[ti + 1].vindex - 1;
+				// 頂点ごとの法線ベクトルの和を取得
+				var n0 = normalAtVertex[vi0];
+				var n1 = normalAtVertex[vi1];
+				var n2 = normalAtVertex[vi2];
+				// 正規化（ベクトルの長さを１にする）
+				vec3.normalize(n0, n0);
+				vec3.normalize(n1, n1);
+				vec3.normalize(n2, n2);
+				// 計算し終わった法線ベクトルをTypedArrayに保存
+				normals.set(n0, triangleCount * 9);
+				normals.set(n1, triangleCount * 9 + 3);
+				normals.set(n2, triangleCount * 9 + 6);
+
+				++triangleCount;
+			}
+		}
+		
 		// 用意したTypedArrayをリターン
 		return {
 			vertices: vertices,
