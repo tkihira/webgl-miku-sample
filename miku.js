@@ -1,11 +1,42 @@
 ;(function() {
+	var config = {
+		objName: "miku.obj"
+	};
+	// XHRを使ってOBJファイルを取得する
+	var fileCount = 0;
 	window.onload = function() {
-		initialize();
+		var callback = function() {
+			fileCount--;
+			if(fileCount == 0) {
+				// 全ファイルがロードされたら初期化
+				initialize();
+			}
+		};
+		loadFile(config.objName, "obj", callback);
+		fileCount++;
+	};
+	var files = {};
+	var loadFile = function(url, name, callback) {
+		var xhr = new XMLHttpRequest();
+		xhr.onreadystatechange = function() {
+			if(xhr.readyState == 4) {
+				files[name] = xhr.responseText;
+				callback();
+			}
+		};
+		xhr.open("GET", url, true);
+		xhr.send("");
 	};
 	
 	var gl; // WebGLのcontext
 	var prog; // コンパイル・リンクされたプログラム
+	var glObj; // WebGL用に変換されたモデルデータ
 	var initialize = function() {
+		// OBJファイルをパース
+		var obj = objParser.objParse(files.obj);
+		// パースしたデータを元にWebGL用のObjectを作成する
+		glObj = objParser.createGLObject(obj);
+		
 		// WebGLのcontextを取得
 		var canvas = document.getElementById("canvas");
 		gl = canvas.getContext("experimental-webgl") || canvas.getContext("webgl");
@@ -55,11 +86,11 @@
 		// 頂点座標に関し、バッファを生成してデータを指定
 		vbuf = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0]), gl.STATIC_DRAW);
+		gl.bufferData(gl.ARRAY_BUFFER, glObj.vertices, gl.STATIC_DRAW);
 		// 法線ベクトルに関しても同上。配列長は頂点数3×軸3=9個
 		nbuf = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, nbuf);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), gl.STATIC_DRAW);
+		gl.bufferData(gl.ARRAY_BUFFER, glObj.normals, gl.STATIC_DRAW);
 	};
 	var frame = 0;
 	var drawFrame = function() {
@@ -69,7 +100,7 @@
 		mat4.frustum(proj_mat, -1, 1, -1, 1, 3, 10);
 		// 移動回転行列の生成
 		var mv_mat = mat4.create();
-		mat4.translate(mv_mat, mv_mat, [0, 0, -6]);
+		mat4.translate(mv_mat, mv_mat, [0, -2, -7]);
 		mat4.rotate(mv_mat, mv_mat, frame * 0.01, [0, 1, 0]); // 軸[0, 1, 0]で回転
 		// uniformでShaderに送信。4fvはfloat4つの配列（vector）という意味
 		gl.uniformMatrix4fv(gl.getUniformLocation(prog, "projectionMatrix"), false, proj_mat);
@@ -93,7 +124,7 @@
 		gl.enableVertexAttribArray(npos);
 
 		// 今まで設定した内容でWebGLに送信
-		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		gl.drawArrays(gl.TRIANGLES, 0, glObj.vertices.length / 3);
 		setTimeout(drawFrame, 16);
 	};
 })();
