@@ -26,11 +26,25 @@
 		// 読み込もうとしているフラグを設定
 		imgLoader.images[url] = true;
 		loadingCount++;
-		var img = document.createElement("img");
-		img.onload = function() {
-			createTexture(url, img, func);
-		};
-		img.src = url;
+		// 拡張子で判断
+		var ext = url.split(".").pop();
+		switch(ext.toLowerCase()) {
+			default:
+				// ブラウザ対応の画像の場合はDOMで生成
+				var img = document.createElement("img");
+				img.onload = function() {
+					createTexture(url, img, func);
+				};
+				img.src = url;
+				break;
+			case "tga":
+				// TGAの場合はCanvasで生成
+				var tga = new TGA();
+				tga.open(url, function() {
+					createTexture(url, tga.getCanvas(), func);
+				});
+				break;
+		}
 	};
 	imgLoader.isLoading = function() {
 		return loadingCount != 0;

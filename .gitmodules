@@ -1,3 +1,6 @@
 [submodule "gl-matrix"]
 	path = gl-matrix
 	url = git@github.com:toji/gl-matrix.git
+[submodule "jsTGALoader"]
+	path = jsTGALoader
+	url = git@github.com:vthibault/jsTGALoader.git

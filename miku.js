@@ -1,7 +1,7 @@
 ;(function() {
 	var config = {
-		objName: "miku.obj",
-		mtlName: "miku.mtl"
+		objName: "append.obj",
+		mtlName: "append.mtl"
 	};
 	// XHRを使ってOBJファイルを取得する
 	var fileCount = 0;
@@ -132,6 +132,9 @@
 		gl.clearColor(0, 0, 0, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		gl.enable(gl.DEPTH_TEST);
+		// ブレンドモードを設定
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
 		// attributeのindex(position)を取得
 		var vpos = gl.getAttribLocation(prog, "vertex");
@@ -151,6 +154,8 @@
 		gl.vertexAttribPointer(vtpos, 2, gl.FLOAT, false, 0, 0); // テクスチャ座標は1頂点につき2要素
 		gl.enableVertexAttribArray(vtpos);
 
+		// Alpha情報を出力しないように設定
+		gl.colorMask(true, true, true, false);
 		// 今まで設定した内容でWebGLに送信
 		// 一度に送信せず、mtl情報ごとに分割して送信する
 		var pos = 0;
@@ -174,6 +179,8 @@
 			gl.drawArrays(gl.TRIANGLES, pos / 3, (mtlInfo.endPos - pos) / 3);
 			pos = mtlInfo.endPos;
 		}
+		// Alpha情報を出力するように設定
+		gl.colorMask(true, true, true, true);
 		setTimeout(drawFrame, 16);
 	};
 })();
