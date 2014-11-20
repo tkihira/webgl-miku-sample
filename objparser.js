@@ -119,7 +119,6 @@
 		for(var i = 0; i < obj.faces.length; i++) {
 			numTriangles += obj.faces[i].length - 2;
 		}
-		console.log(numTriangles);
 		// ポリゴンの枚数に応じたTypedArrayを確保する
 		// 頂点座標（ポリゴン数×3頂点×3要素）
 		var vertices = new Float32Array(numTriangles * 9);
